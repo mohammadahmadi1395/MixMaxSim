@@ -1,0 +1,7 @@
+features/*
+scenarios/*
+data/glint360k/all_id_files.json
+data/MS-Celeb-1M/all_id_files.json
+data/VGGFace2/all_id_files.json
+extra/*
+models/model.onnx
