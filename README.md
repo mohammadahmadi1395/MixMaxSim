@@ -91,7 +91,7 @@
   │   │   │    ├── custom_name_360000_27.jpg
   │   │   │    ├── ...
   └   └   └    └── custom_name_360000_30.jpg
-```
+  ```
   #### Notes: 
   1. If some ids have less than 30 images, you can create new images using augmentation techniques.
   2. Choose the train, test and val images completely random.
@@ -119,11 +119,77 @@
   │   │   ├── id_2.npz
   │   │   ├── ...
   └   └   └── id_360000.npz
-```
+  ```
+  #### example of feature extraction:
+  onnx_model = onnx.load('models/model.onnx')
+  tf_rep = prepare(onnx_model) # Import the ONNX model to Tensorflow
 
+  ``` 
+  # Crop and save the face
+  # Detect faces using RetinaFace
+  faces = RetinaFace.extract_faces(img_path=image_path, align=True)
+  if len(faces) != 1:
+    return
+  face_image = faces[0]
+  x_train = tf.image.resize(np.array(face_image), (112, 112), method="nearest")
+  x_train = (tf.cast(x_train, tf.float32) - 127.5) / 128.
+  x_train = tf.transpose(x_train, perm=[2, 0, 1])
+  x_train = tf.expand_dims(x_train, 0)
+  x_train_emb = tf_rep.run(np.array(x_train))._0
+  ```
+
+  [This](notebooks/ms1m_data_preparation.ipynb) notebook file prepares all data and extract features for MSCeleb1M dataset</br>
+  And [this](notebooks/vgg_data_preparation.ipynb) one prepares all data and extract features for VGGFace2 dataset </br>
+
+  ### Load the configuration file
+  ```
+  with open("./config/config.json", "r") as config_file:
+    config = json.load(config_file)
+  ```
+
+  ### set parameters in config.json file
+  ```
+  "dataset_name": "vggface2",
+  "method": "ISM",  
+  "n_classes": 10000, 
+  "n_clusters": 5,
+  "distance_measure": "cosine", 
+  ```
+  Notes:
+  - dataset_name: "vggface2" or "glint360k" or "ms1m"
+  - methods: 
+    - MMS (Mixture of Max-max and Similarity) 
+    - ISM (Independent Softmax Model)
+    - Single (without distribution)
+  - n_classes: 
+    - vggface2: the max number of classes is 8900
+    - glint360k: the max number of classes is 360,000 
+    - ms1m: the max number of classes is 100,000
+  - distance_measure: "cosine" or "euclidean"
+  ### Load the configuration file
+  ```
+  with open("./config/config.json", "r") as config_file:
+    config = json.load(config_file)
+  ```
+  ### prepare train, test, val datasets based on number of classes
+  ```
+  from src.data_utility import prepare_data
+  trainx, trainy, trainl, \
+  traincenterx, traincentery, traincenterl, \
+  testx, testy, testl, valx, valy, vall = \ 
+                  prepare_data(config)
+  ```
+  ### Distribute classes among submodules
+  ```
+  from src.data_utility import cluster_data
+  parts = cluster_data(method, trainx, trainy, trainl, traincenterx, traincentery, traincenterl, testx, testy, testl, valx, valy, vall)
+  ```
+  ### Train each submodule  
+  ```
+  from src.data_utility import train_submodels
+  train_submodels(method, parts, trainx, trainy, trainl, traincenterx, traincentery, traincenterl, testx, testy, testl, valx, valy, vall)
+  ```
+
+  
   ### Model
   Now, you are ready for create the model and train it.
-
-  ## Save Readme ✨  
-  Once you're done, click on the save button to download and save your ReadMe!
-  
