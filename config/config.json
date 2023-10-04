@@ -29,5 +29,6 @@
     "n_clusters": 5,
     "distance_measure": "cosine",
     "dataset_name": "vggface2",
-    "overwrite": true
+    "overwrite": true,
+    "epochs": 50
 }

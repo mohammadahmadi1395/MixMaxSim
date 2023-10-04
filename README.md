@@ -189,7 +189,42 @@
   from src.data_utility import train_submodels
   train_submodels(method, parts, trainx, trainy, trainl, traincenterx, traincentery, traincenterl, testx, testy, testl, valx, valy, vall)
   ```
-
+  ### result combination
+  #### ISM
+  ```
+  test_softmax_classes = ism_post_process(m, 'test')
+  evaluate_ism(m, test_softmax_classes)
+  ```
+  #### MMS
+  ```
+  # calculate values based on max-max criterion and distance measure (cosine similarity) criterion on validation dataset
+  val_sim_classes, val_sim_values, val_sim_softmax, val_softmax_values, val_softmax_sims, val_softmax_classes = mms_post_process(m, 'val')
   
-  ### Model
-  Now, you are ready for create the model and train it.
+  # find the point that balances between max-max criterion and cosine similarity criterion on validation dataset
+  thr = find_best_thr(val_sim_classes, val_sim_values, val_sim_softmax, val_softmax_values, val_softmax_sims, val_softmax_classes)
+
+  # calculates values based on max_max criterion and distance measure (cosine similarity) criterion on test dataset 
+  test_sim_classes, test_sim_values, test_sim_softmax, test_softmax_values, test_softmax_sims, test_softmax_classes = mms_post_process(m, 'test')
+  
+  # finally evaluates on test dataset
+  evaluate_mms(thr, test_sim_classes, test_sim_values, test_sim_softmax, test_softmax_values, test_softmax_sims, test_softmax_classes)
+  ```
+  #### Single
+  for Single method, we can use ISM with one cluster.
+
+  ## All in One
+  includes data preparation, distribute classes, train each submodel, combine results and save the evaluation results on file
+  ### ISM
+  ```
+  python3 main_ism.py
+  ```
+
+  ### MMS
+  ```
+  python3 main_mms.py
+  ```
+
+  ### Single
+  ```
+  python3 main_single.py
+  ```
