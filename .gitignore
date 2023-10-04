@@ -6,3 +6,7 @@ data/VGGFace2/all_id_files.json
 extra/*
 models/model.onnx
 results/*
+notebooks/test.ipynb
+notebooks/ttest.ipynb
+notebooks/ttest_copy.ipynb
+notebooks/tttest.ipynb
