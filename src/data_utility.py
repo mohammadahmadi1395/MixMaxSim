@@ -203,41 +203,6 @@ def distribute_classes(method, n_classes, n_clusters, trainx, trainy, trainl, tr
 
     return parts
 
-# def cluster_data(method, trainx, trainy, trainl, traincenterx, traincentery, traincenterl, testx, testy, testl, valx, valy, vall):
-#     distribution_path = join(data_scenario_path, 'parts.npz')
-#     parts = dict()
-
-#     if method == 'ISM':   
-#         if config['overwrite'] == False and os.path.isfile(distribution_path):
-#             parts = (np.load(distribution_path, allow_pickle=True)['res']).item()
-#         else:
-#             # # random 
-#             lbls = np.zeros((n_classes), dtype='int')
-#             for i in range(n_classes):
-#                 lbls[i] = random.randint(0, n_clusters-1)
-#             for i in range(n_clusters):
-#                 # parts[i] = torch.Tensor((lbls == i).nonzero()).squeeze(0).unsqueeze(1).cuda().int().cpu().numpy().squeeze(1)
-#                 parts[i] = torch.Tensor((lbls == i).nonzero()).flatten().int().numpy()
-#             savez_compressed(distribution_path, res = parts)
-    
-#     elif method == "MMS":
-#         clustering_model_filename = join(model_scenario_path, 'kmeans.sav')
-
-#         if config['overwrite'] == False and os.path.isfile(distribution_path) and os.path.isfile(clustering_model_filename):
-#             kmeans_model = pickle.load(open(clustering_model_filename, 'rb'))
-#             parts = (np.load(distribution_path, allow_pickle=True)['res']).item()
-#         else:
-#             centers, labels = clustering.init_centers(trainx, n_clusters) # IMPORTANT TODO: dont forget to cite the reference
-#             kmeans_model = clustering.Fast_KMeans(n_clusters=n_clusters, max_iter=100, tol=0.0001, verbose=0, centroids=centers, mode=m, minibatch=None)
-#             lbls = kmeans_model.fit_predict(torch.Tensor(traincenterx).cuda())
-#             pickle.dump(kmeans_model, open(clustering_model_filename, 'wb'))
-#             for i in range(n_clusters):
-#                 parts[i] = (lbls == i).nonzero().cpu().numpy().squeeze(1)
-#             savez_compressed(distribution_path, res = parts)
-
-#     return parts
-
-
 def train_submodels(method, n_classes, parts, trainx, trainy, trainl, traincenterx, traincentery, traincenterl, testx, testy, testl, valx, valy, vall):
     config = load_config()
     dataset_name = config['dataset_name']
@@ -312,14 +277,6 @@ def evaluate_ism(iter, m, n_classes, n_clusters, testl, test_softmax_classes):
     conn.close()
 
     return max_max_report
-
-
-# def calc_mms_acc(m):
-#     val_sim_classes, val_sim_values, val_sim_softmax, val_softmax_values, val_softmax_sims, val_softmax_classes = mms_post_process(m, 'val')
-#     thr = find_best_thr(val_sim_classes, val_sim_values, val_sim_softmax, val_softmax_values, val_softmax_sims, val_softmax_classes)
-
-#     test_sim_classes, test_sim_values, test_sim_softmax, test_softmax_values, test_softmax_sims, test_softmax_classes = mms_post_process(m, 'test')
-#     final_report = evaluate_mms(thr, test_sim_classes, test_sim_values, test_sim_softmax, test_softmax_values, test_softmax_sims, test_softmax_classes)
 
 
 def evaluate_mms(iter, thr, testl, n_classes, n_clusters, sim_classes, sim_values, sim_softmax, softmax_values, softmax_sims, softmax_classes):

@@ -1,46 +1,13 @@
-# from tensorflow.python.ops.numpy_ops import np_config
-# np_config.enable_numpy_behavior()
-# import collections
-# import json
-# import keras
 import numpy as np
 import os
-# import pandas as pd
-# import pickle
-# import random
-# import shutil
-# import sqlite3
 import tensorflow as tf
 import tensorflow_addons as tfa
-# import time
-# import torch
-
 from datetime import datetime
 from tensorflow.keras.layers import Input, Dense, Dropout, Flatten
 import math
-
-# from kmeans_pytorch import kmeans, kmeans_predict
-# from numpy import unique, where, savez_compressed
 from os.path import join
 from tensorflow.keras import Model
-# from pathlib import Path
-# from scipy.spatial.distance import cdist
-# from sklearn.cluster import KMeans, kmeans_plusplus, _kmeans
-# # from sklearn_extra.cluster import KMedoids
-# from sklearn.metrics.cluster import adjusted_rand_score
-# from sklearn.neighbors import KNeighborsClassifier, NearestNeighbors
-# from sklearn.utils import shuffle
-# from sklearn.utils.extmath import softmax
-# from sklearn import metrics, preprocessing
-# from sklearn.preprocessing import StandardScaler
-# from tensorflow.keras import activations, layers
-# from tensorflow.keras.models import Sequential, save_model, load_model
-# from tensorflow.keras.preprocessing import image
-# from keras.callbacks import EarlyStopping, ModelCheckpoint
 from tqdm import tqdm
-# from time import time
-# import tensorflow as tf
-# from math import pi
 
 def current_time():
     return datetime.now().strftime('%y/%m/%d-%H:%M:%S')
