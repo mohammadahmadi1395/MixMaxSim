@@ -26,23 +26,64 @@ seed(1)
 tf.random.set_seed(2)
 
 def load_config():
+    """
+    Load configuration data from a JSON file.
+
+    Returns:
+        dict: A dictionary containing the loaded configuration data.
+    """
     with open("./config/config.json", "r") as config_file:
         config = json.load(config_file)
+
     return config
 
 
-def set_weights(testl, n_classes):
-    weights = []
+def load_weights(test_labels, n_classes):
+    """
+    Load class weights for a classification problem.
+
+    This function calculates and returns class weights based on the number
+    of samples for each class in the test_labels.
+
+    Args:
+        test_labels (numpy.ndarray): Array of true class labels for test data.
+        n_classes (int): The total number of classes in the classification problem.
+
+    Returns:
+        numpy.ndarray: An array of class weights, one weight per class.
+    """
+    weights = []  # Initialize an empty list to store class weights.
+
+    # Calculate the number of samples for each class.
     for i in range(n_classes):
-        w = (len(np.where(testl == i)[0]))
-        for s in range(w):
-            weights.append(1/w)
+        num_samples = len(np.where(test_labels == i)[0])
+        
+        # Calculate and append the class weight for each sample in the class.
+        for _ in range(num_samples):
+            weights.append(1 / num_samples)
+    
+    # Convert the list of weights to a NumPy array for efficient manipulation.
     weights = np.array(weights)
-    return weights
+    
+    return weights  # Return the array of class weights.
 
 
 def prepare_data(n_classes):
-    config = load_config()
+    """
+    Prepare data for a specific scenario with a specified number of classes.
+
+    This function loads and processes data for training, validation, and testing.
+    If preprocessed data files are available, it loads them; otherwise, it preprocesses
+    the data and saves the preprocessed files.
+
+    Args:
+        n_classes (int): The number of classes to include in the scenario.
+
+    Returns:
+        Tuple: A tuple containing various data arrays and lists for training, validation, and testing.
+    """
+    config = load_config()  # Load configuration data.
+
     dataset_name = config['dataset_name']
     super_scenario_path = join(config[dataset_name]["scenario_embs"], str(n_classes))
 
@@ -50,23 +91,15 @@ def prepare_data(n_classes):
     val_embeddings_path = join(config[dataset_name]["features"], 'val')
     test_embeddings_path = join(config[dataset_name]["features"], 'test')
 
-    trainx = []
-    trainy = []
-    trainl = []
+    # Initialize data lists and arrays for different data splits.
+    trainx, trainy, trainl = [], [], []
+    traincenterx, traincentery, traincenterl = [], [], []
+    testx, testy, testl = [], [], []
+    valx, valy, vall = [], [], []
 
-    traincenterx = []
-    traincentery = []
-    traincenterl = []
-
-    testx = []
-    testy = []
-    testl = []
-
-    valx = []
-    valy = []
-    vall = []
-
+    # Check if preprocessed data files are available.
     if os.path.isfile(join(super_scenario_path, 'testx.npz')):
+        # Load preprocessed data if available.
         trainx = np.load(join(super_scenario_path, 'trainx.npz'))['res']
         trainy = np.load(join(super_scenario_path, 'trainy.npz'))['res']
         trainl = np.load(join(super_scenario_path, 'trainl.npz'))['res']
@@ -83,19 +116,21 @@ def prepare_data(n_classes):
         valy = np.load(join(super_scenario_path, 'valy.npz'))['res']
         vall = np.load(join(super_scenario_path, 'vall.npz'))['res']
     else:
+        # Preprocess data if preprocessed files are not available.
         all_id_files = dict()
         with open(join(config[dataset_name]['orig_dataset_dir'], dataset_name, 'all_id_files.json')) as jsonfile:
             all_id_files = json.load(jsonfile)
 
         keys = list(all_id_files.keys())[:n_classes]
-        
+
         os.makedirs(join('..', dataset_name, 'data', str(n_classes)), exist_ok=True)
 
         idx = 0
         for class_name in tqdm(keys):
+            # Load and process training data.
             tr_x = np.load(join(train_embeddings_path, class_name + '.npz'), allow_pickle=True)
-            tr_f = 20 # len(tr_features)
-            tr_features = tr_x[tr_x.files[0]][:tr_f]    
+            tr_f = 20  # Number of training features to consider
+            tr_features = tr_x[tr_x.files[0]][:tr_f]
             trainx.extend(tr_features)
             trainy.extend([class_name] for t in range(tr_f))
             trainl.extend([idx] for t in range(tr_f))
@@ -104,46 +139,39 @@ def prepare_data(n_classes):
             traincenterl.append(idx)
             traincentery.append(class_name)
 
+            # Load and process test data.
             te_x = np.load(join(test_embeddings_path, class_name + '.npz'), allow_pickle=True)
-            te_f = 5 # len(te_features)
+            te_f = 5  # Number of test features to consider
             te_features = te_x[te_x.files[0]][:te_f]
             testx.extend(te_features)
             testl.extend([idx] for t in range(te_f))
             testy.extend([class_name] for t in range(te_f))
 
+            # Load and process validation data.
             v_x = np.load(join(val_embeddings_path, class_name + '.npz'), allow_pickle=True)
-            v_f = 5 # len(v_features)
+            v_f = 5  # Number of validation features to consider
             v_features = v_x[v_x.files[0]][:v_f]
             valx.extend(v_features)
             vall.extend([idx] for t in range(v_f))
             valy.extend([class_name] for t in range(v_f))
 
-            idx+=1
+            idx += 1
 
-        trainx = np.array(trainx)
-        trainl = np.array(trainl)
-        trainy = np.array(trainy)
+        # Convert lists to NumPy arrays for efficient manipulation.
+        trainx, trainl, trainy = np.array(trainx), np.array(trainl), np.array(trainy)
+        traincenterx, traincenterl, traincentery = np.array(traincenterx), np.array(traincenterl), np.array(traincentery)
+        testx, testl, testy = np.array(testx), np.array(testl), np.array(testy)
+        valx, vall, valy = np.array(valx), np.array(vall), np.array(valy)
 
-        traincenterx = np.array(traincenterx)
-        traincenterl = np.array(traincenterl)
-        traincentery = np.array(traincentery)
+        # # TODO: remove later
+        # trainl = trainl.squeeze()
+        # testl = testl.squeeze()
+        # vall = vall.squeeze()
+        # trainy = trainy.squeeze()
+        # testy = testy.squeeze()
+        # valy = valy.squeeze()
 
-        testx = np.array(testx)
-        testl = np.array(testl)
-        testy = np.array(testy)
-
-        valx = np.array(valx)
-        vall = np.array(vall)
-        valy = np.array(valy)
-
-        # TODO: remove later
-        trainl = trainl.squeeze()
-        testl = testl.squeeze()
-        vall = vall.squeeze()
-        trainy = trainy.squeeze()
-        testy = testy.squeeze()
-        valy = valy.squeeze()
-
+        # Save preprocessed data.
         savez_compressed(join(super_scenario_path, 'trainx.npz'), res=trainx)
         savez_compressed(join(super_scenario_path, 'trainy.npz'), res=trainy)
         savez_compressed(join(super_scenario_path, 'trainl.npz'), res=trainl)
@@ -158,12 +186,35 @@ def prepare_data(n_classes):
 
         savez_compressed(join(super_scenario_path, 'valx.npz'), res=valx)
         savez_compressed(join(super_scenario_path, 'valy.npz'), res=valy)
-        savez_compressed(join(super_scenario_path, 'vall.npz'), res=vall)    
+        savez_compressed(join(super_scenario_path, 'vall.npz'), res=vall)
 
+    # Return the preprocessed data arrays and lists.
     return trainx, trainy, trainl, traincenterx, traincentery, traincenterl, testx, testy, testl, valx, valy, vall
 
-
 def distribute_classes(method, n_classes, n_clusters, trainx, trainy, trainl, traincenterx, traincentery, traincenterl, testx, testy, testl, valx, valy, vall):    
+    """
+    Distribute classes into parts based on the specified method.
+
+    Args:
+        method (str): The method for distributing classes ('ISM' or 'MMS').
+        n_classes (int): The number of classes.
+        n_clusters (int): The number of clusters.
+        trainx (numpy.ndarray): Training data features.
+        trainy (numpy.ndarray): Training data labels.
+        trainl (numpy.ndarray): Training data class labels.
+        traincenterx (numpy.ndarray): Training data class center features.
+        traincentery (numpy.ndarray): Training data class center labels.
+        traincenterl (numpy.ndarray): Training data class center class labels.
+        testx (numpy.ndarray): Test data features.
+        testy (numpy.ndarray): Test data labels.
+        testl (numpy.ndarray): Test data class labels.
+        valx (numpy.ndarray): Validation data features.
+        valy (numpy.ndarray): Validation data labels.
+        vall (numpy.ndarray): Validation data class labels.
+
+    Returns:
+        dict: A dictionary containing the distribution of classes into clusters.
+    """
     config = load_config()
     dataset_name = config['dataset_name']
     scenario = str(n_classes) + '_' + method + str(n_clusters)
@@ -174,36 +225,56 @@ def distribute_classes(method, n_classes, n_clusters, trainx, trainy, trainl, tr
     parts = dict()
 
     if method == 'ISM':   
-        if config['overwrite'] == False and os.path.isfile(distribution_path):
+        if not config['overwrite'] and os.path.isfile(distribution_path):
             parts = (np.load(distribution_path, allow_pickle=True)['res']).item()
         else:
-            # # random 
+            # Randomly assign classes to clusters.
             lbls = np.zeros((n_classes), dtype='int')
             for i in range(n_classes):
                 lbls[i] = random.randint(0, n_clusters-1)
             for i in range(n_clusters):
-                # parts[i] = torch.Tensor((lbls == i).nonzero()).squeeze(0).unsqueeze(1).cuda().int().cpu().numpy().squeeze(1)
                 parts[i] = torch.Tensor((lbls == i).nonzero()).flatten().int().numpy()
-            savez_compressed(distribution_path, res = parts)
-    
+            savez_compressed(distribution_path, res=parts)
+
     elif method == "MMS":
         clustering_model_filename = join(model_scenario_path, 'kmeans.sav')
 
-        if config['overwrite'] == False and os.path.isfile(distribution_path) and os.path.isfile(clustering_model_filename):
+        if not config['overwrite'] and os.path.isfile(distribution_path) and os.path.isfile(clustering_model_filename):
             kmeans_model = pickle.load(open(clustering_model_filename, 'rb'))
             parts = (np.load(distribution_path, allow_pickle=True)['res']).item()
         else:
-            centers, labels = clustering.init_centers(trainx, n_clusters) # IMPORTANT TODO: dont forget to cite the reference
+            # Initialize centers and labels using K-means clustering.
+            centers, labels = clustering.init_centers(trainx, n_clusters)  # TODO: Don't forget to cite the reference.
             kmeans_model = clustering.Fast_KMeans(n_clusters=n_clusters, max_iter=100, tol=0.0001, verbose=0, centroids=centers, mode=m, minibatch=None)
             lbls = kmeans_model.fit_predict(torch.Tensor(traincenterx).cuda())
             pickle.dump(kmeans_model, open(clustering_model_filename, 'wb'))
             for i in range(n_clusters):
                 parts[i] = (lbls == i).nonzero().cpu().numpy().squeeze(1)
-            savez_compressed(distribution_path, res = parts)
+            savez_compressed(distribution_path, res=parts)
 
     return parts
-
+    
 def train_submodels(method, n_classes, parts, trainx, trainy, trainl, traincenterx, traincentery, traincenterl, testx, testy, testl, valx, valy, vall):
+    """
+    Train submodels for each cluster using the specified method.
+
+    Args:
+        method (str): The method for training submodels.
+        n_classes (int): The number of classes.
+        parts (dict): A dictionary containing class assignments to clusters.
+        trainx (numpy.ndarray): Training data features.
+        trainy (numpy.ndarray): Training data labels.
+        trainl (numpy.ndarray): Training data class labels.
+        traincenterx (numpy.ndarray): Training data class center features.
+        traincentery (numpy.ndarray): Training data class center labels.
+        traincenterl (numpy.ndarray): Training data class center class labels.
+        testx (numpy.ndarray): Test data features.
+        testy (numpy.ndarray): Test data labels.
+        testl (numpy.ndarray): Test data class labels.
+        valx (numpy.ndarray): Validation data features.
+        valy (numpy.ndarray): Validation data labels.
+        vall (numpy.ndarray): Validation data class labels.
+    """
     config = load_config()
     dataset_name = config['dataset_name']
     dataset_path = config[dataset_name]["features"]
@@ -214,16 +285,44 @@ def train_submodels(method, n_classes, parts, trainx, trainy, trainl, traincente
     model_scenario_path = join(config[dataset_name]["scenario_submodels"], scenario)
 
     for r in range(len(parts)):
+        # Print cluster information.
         utility_functions.pprint(('cluster', str(r)), config[dataset_name])
+        
+        # Calculate train and test data IDs for the current cluster.
         train_ids = utility_functions.train_calc_ids(parts[r], trainy, trainl, r)
         test_ids = utility_functions.test_calc_ids(parts[r], trainy, trainl, r)
+        
+        # Convert embeddings to TFRecord format.
         train_sample_count, test_sample_count = utility_functions.convert_emb_to_tfrecord(dataset_name, data_scenario_path, dataset_path, train_ids, test_ids, r, overwrite=False, all_samples=True, n_classes=len(parts[r]))
+        
+        # Prepare training and test datasets.
         train_dataset, test_dataset = utility_functions.prepare_data_sets(dataset_name, data_scenario_path, train_ids, test_ids, r)    
+        
+        # Define the submodel path.
         model_scenario_path = join(config[dataset_name]["scenario_submodels"], scenario)
-        training.softmax_train(config[dataset_name], model_scenario_path, train_dataset, parts[r], trainx, trainl, r, epochs=config['epochs'],train_overwrite=False, freq = train_sample_count // 100)
+        
+        # Train the submodel using softmax.
+        training.softmax_train(config[dataset_name], model_scenario_path, train_dataset, parts[r], trainx, trainl, r, epochs=config['epochs'], train_overwrite=False, freq=train_sample_count // 100)
+
 
 def evaluate_ism(iter, m, n_classes, n_clusters, testl, test_softmax_classes):
-    weights = set_weights(testl, n_classes)
+    """
+    Evaluate the ISM (Independent Softmax Model) and update the results in the database.
+
+    Args:
+        iter (int): The current iteration or run number.
+        m (int): The distance measure used.
+        n_classes (int): The number of classes.
+        n_clusters (int): The number of clusters.
+        testl (numpy.ndarray): True class labels of test samples.
+        test_softmax_classes (numpy.ndarray): Predicted class labels using the ISM model.
+
+    Returns:
+        dict: A dictionary containing classification report metrics.
+    """
+    # Load class weights based on test samples.
+    weights = load_weights(testl, n_classes)
+    
     config = load_config()
     dataset_name = config["dataset_name"]
 
@@ -251,28 +350,27 @@ def evaluate_ism(iter, m, n_classes, n_clusters, testl, test_softmax_classes):
             except:
                 max_max_false_prec[test_softmax_classes[test_sample]] += weights[test_sample]
 
-    # print(max_max_trues / (max_max_trues + max_max_falses))
+
+    # Calculate precision, recall, and F1-score arrays.
     max_max_precision_array = np.divide(max_max_true_prec, (max_max_true_prec + max_max_false_prec), out=np.zeros_like(max_max_true_prec), where=(max_max_false_prec + max_max_true_prec)!=0)
     max_max_recall_array = np.divide(max_max_true_recall, (max_max_true_recall + max_max_false_recall), out=np.zeros_like(max_max_true_recall), where=(max_max_false_recall + max_max_true_recall)!=0)
-
     max_max_f_score_x = 2 * max_max_precision_array * max_max_recall_array
     max_max_f_score_y = max_max_precision_array + max_max_recall_array
     max_max_fscore_array =  np.divide(max_max_f_score_x, max_max_f_score_y, out=np.zeros_like(max_max_f_score_x), where=(max_max_f_score_y)!=0)
 
+    # Calculate macro-average precision, recall, and F1-score.
     max_max_precision = np.sum(max_max_precision_array) / n_classes
     max_max_recall = np.sum(max_max_recall_array) / n_classes
     max_max_fscore = np.sum(max_max_fscore_array) / n_classes
 
-    max_max_precision, max_max_recall, max_max_fscore
-
+    # Print macro-average metrics.
     max_max_report = metrics.classification_report(testl, test_softmax_classes, output_dict=True, zero_division=0)
     utility_functions.pprint((max_max_report['macro avg']), config[dataset_name])
 
+    # Update results in the database.
     conn = sqlite3.connect("./results/results.db")
     cursor = conn.cursor()
-
     cursor.execute("UPDATE results set ism_end_timestamp = ?, ism_recall = ?, ism_precision =?, ism_fscore = ? where iteration = ? and dataset_name= ? and n_classes = ? and n_clusters = ?", (datetime.now(), max_max_report['macro avg']['recall'], max_max_report['macro avg']['precision'], max_max_report['macro avg']['f1-score'], iter, dataset_name, n_classes, n_clusters))
-
     conn.commit()
     conn.close()
 
@@ -280,7 +378,26 @@ def evaluate_ism(iter, m, n_classes, n_clusters, testl, test_softmax_classes):
 
 
 def evaluate_mms(iter, thr, testl, n_classes, n_clusters, sim_classes, sim_values, sim_softmax, softmax_values, softmax_sims, softmax_classes):
-    weights = set_weights(testl, n_classes)
+    """
+    Evaluate the performance of the MMS (MixMaxSim) method.
+
+    Args:
+        iter (int): The iteration number.
+        thr (float): The threshold for combining similarity and softmax predictions.
+        testl (numpy.ndarray): True labels for test data.
+        n_classes (int): The number of classes.
+        n_clusters (int): The number of clusters.
+        sim_classes (numpy.ndarray): Predicted classes based on similarity.
+        sim_values (numpy.ndarray): Similarity values (similarity between input and a specific class feature vector).
+        sim_softmax (numpy.ndarray): The softmax value of corresponding neuron of above class for a test data.
+        softmax_values (numpy.ndarray): Softmax values.
+        softmax_sims (numpy.ndarray): The similarity value of the class with best softmax value.
+        softmax_classes (numpy.ndarray): The class with best softmax value.
+
+    Returns:
+        dict: Classification report containing precision, recall, and F1-score.
+    """
+    weights = load_weights(testl, n_classes)
     config = load_config()
     dataset_name = config["dataset_name"]
     
@@ -325,8 +442,26 @@ def evaluate_mms(iter, thr, testl, n_classes, n_clusters, sim_classes, sim_value
 
     return main_report
 
+
 def find_best_thr(n_classes, vall, sim_classes, sim_values, sim_softmax, softmax_values, softmax_sims, softmax_classes):
-    weights = set_weights(vall, n_classes)
+    """
+    Find the best threshold for combining similarity-based and softmax-based predictions.
+
+    Args:
+        n_classes (int): The number of classes.
+        vall (numpy.ndarray): True labels for validation data.
+        sim_classes (numpy.ndarray): Predicted classes based on similarity.
+        sim_values (numpy.ndarray): Similarity values (similarity between input and a specific class feature vector).
+        sim_softmax (numpy.ndarray): The softmax value of corresponding neuron of above class for a test data.
+        softmax_values (numpy.ndarray): Softmax values.
+        softmax_sims (numpy.ndarray): The similarity value of the class with best softmax value.
+        softmax_classes (numpy.ndarray): The class with best softmax value.
+
+    Returns:
+        int: The best threshold value.
+    """
+
+    weights = load_weights(vall, n_classes)
     config = load_config()
     dataset_name = config["dataset_name"]
 
@@ -340,13 +475,17 @@ def find_best_thr(n_classes, vall, sim_classes, sim_values, sim_softmax, softmax
     best_recall = 0
 
     main_preds = np.zeros((len(vall), 20))
+
+    # Iterate through a range of threshold values
     for th in range(0, 20):
         trues = 0
         falses = 0
+
+        # Calculate the combined prediction using the threshold
         try:
-            res = (sim_values * (th / 10) * ((sim_softmax+1)/2)) > (softmax_values * ((np.array(softmax_sims)+1)/2))
+            res = (sim_values * ((sim_softmax+1)/2)) * (th / 10) > (softmax_values * ((np.array(softmax_sims)+1)/2))
         except:
-            res = (sim_values * (th / 10) * ((sim_softmax+1)/2)) > (softmax_values.numpy() * ((np.array(softmax_sims.numpy())+1)/2))
+            res = (sim_values * ((sim_softmax+1)/2)) * (th / 10) > (softmax_values.numpy() * ((np.array(softmax_sims.numpy())+1)/2))
         for idx in range(len(vall)):
             if softmax_values[idx] > 0.5: #0.5:
                 main_preds[idx, th] = softmax_classes[idx]
@@ -391,6 +530,8 @@ def find_best_thr(n_classes, vall, sim_classes, sim_values, sim_softmax, softmax
                     except:
                         false_prec[softmax_classes[idx]] += weights[idx]                    
         main_recall = trues / (trues + falses)
+
+        # Print and update the best threshold if necessary
         print((th, main_recall))
         if main_recall >= best_recall:
             best_thr = th
@@ -401,6 +542,20 @@ def find_best_thr(n_classes, vall, sim_classes, sim_values, sim_softmax, softmax
     return best_thr
 
 def mms_post_process(m, n_classes, parts, traincenterx, valx, t = 'val'):
+    """
+    Perform post-processing for the MMS (MixMaxSim) method.
+
+    Args:
+        m (str): The distance measure used in MMS ('euclidean' or 'cosine').
+        n_classes (int): The number of classes.
+        parts (dict): A dictionary containing clusters.
+        traincenterx (numpy.ndarray): Training center embeddings.
+        valx (numpy.ndarray): Validation data embeddings.
+        t (str, optional): Type of post-processing ('val' or 'test'). Defaults to 'val'.
+
+    Returns:
+        Tuple: A tuple containing various results from the post-processing.
+    """
     config = load_config()
 
     models = dict()
@@ -452,8 +607,7 @@ def mms_post_process(m, n_classes, parts, traincenterx, valx, t = 'val'):
     max_softmax = np.array(list(max_softmax.values())).transpose()
     argmax_softmax = np.array(list(argmax_softmax.values())).transpose()
 
-    # ابتدا نزدیکترین دسته به هر نمونه آزمون را پیدا میکنیم
-    # شماره دسته، شماره خوشه، شماره دسته در خوشه و مقدار شباهت کسینوسی و مقدار سافتمکس نزدیکترین دسته را در لیستهای مجزا ذخیره میکنیم
+    # Find the nearest class to each test sample
     batch_size = 5000
     batch_numbers = len(valx) // batch_size + (1 if (len(valx) % batch_size != 0) else 0)
 
@@ -512,12 +666,12 @@ def mms_post_process(m, n_classes, parts, traincenterx, valx, t = 'val'):
         sim_classes_in_clusters = np.array(torch.load(join(pre_path, t + '_sim_classes_in_clusters.pt')))
         sim_values = np.array(torch.load(join(pre_path, t + '_sim_values.pt')))
 
-        # نمونه های مربوط به هر خوشه را جدا میکنیم
+        # Separate samples for each cluster
         ids = dict()
         for r in parts:
             ids[r] = np.where(sim_clusters == r)[0]
 
-        # دار سافتمکس دسته ای که بیشترین شباهت کسینوسی به داده آزمون را دارد
+        # Calculate softmax values for the class which has highest similarity value for each test sample
         sim_softmax = np.zeros(len(valx))
         m = dict()
         batch_size = 1000
@@ -536,9 +690,7 @@ def mms_post_process(m, n_classes, parts, traincenterx, valx, t = 'val'):
         torch.save(torch.Tensor(sim_softmax), join(pre_path, t + '_sim_softmax.pt'))
         sim_softmax = np.array(torch.load(join(pre_path, t + '_sim_softmax.pt')))
 
-    
-    # در مرحله دوم، ابتدا بهترین دسته هایی که بیشترین مقدار سافتمکس را دریافت کرده اند، پیدا میکنیم
-    # شماره دسته، شماره خوشه، شماره دسته در خوشه، مقدار سافتمکس و مقدار شباهت کسینوسی دسته با داده آزمون
+    # Find the classes with highest scores (softmax values) in each cluster
     if config['overwrite'] == False and os.path.isfile(join(pre_path, t + '_softmax_values.pt')):
         softmax_clusters = torch.load(join(pre_path, t + '_softmax_clusters.pt'))
         softmax_classes = torch.load(join(pre_path, t + '_softmax_classes.pt'))
@@ -559,7 +711,7 @@ def mms_post_process(m, n_classes, parts, traincenterx, valx, t = 'val'):
         torch.save(torch.Tensor(softmax_classes_in_clusters), join(pre_path, t + '_softmax_classes_in_clusters.pt'))
         torch.save(torch.Tensor(softmax_values), join(pre_path, t + '_softmax_values.pt'))
 
-        # مقدار شباهت کسینوسی دسته ای که بیشترین مقدار سافتمکس را دارد
+        # Calculate cosine similarity of each class with test samples
         softmax_sims = []
         for idx in tqdm(range(len(valx))):
             if m == 'euclidean':
@@ -567,7 +719,7 @@ def mms_post_process(m, n_classes, parts, traincenterx, valx, t = 'val'):
             else:
                 softmax_sims.append(utility_functions.cos_sim(torch.Tensor(np.array([valx[idx]])), torch.Tensor(np.array([traincenterx[softmax_classes[idx]]])))[0][0].item())
 
-        # # just for euclidean
+        # Normalize similarity scores (only for 'euclidean')
         if m == 'euclidean':
             v = torch.Tensor(softmax_sims)
             v_min, v_max = v.min(), v.max()
@@ -580,6 +732,19 @@ def mms_post_process(m, n_classes, parts, traincenterx, valx, t = 'val'):
 
 
 def ism_post_process(m, n_classes, parts, valx, t = 'val'):
+    """
+    Post-process the ISM (Independent Softmax Model) results and calculate softmax values and clusters.
+
+    Args:
+        m (int): The distance measure used.
+        n_classes (int): The number of classes.
+        parts (dict): A dictionary containing class assignments to clusters.
+        valx (numpy.ndarray): Validation data features.
+        t (str): The type of data ('val' by default).
+
+    Returns:
+        list: A list of softmax classes.
+    """    
     models = dict()
     n_clusters = len(parts)
 
@@ -632,15 +797,9 @@ def ism_post_process(m, n_classes, parts, valx, t = 'val'):
     max_softmax = np.array(list(max_softmax.values())).transpose()
     argmax_softmax = np.array(list(argmax_softmax.values())).transpose()
 
-    # ابتدا نزدیکترین دسته به هر نمونه آزمون را پیدا میکنیم
-    # شماره دسته، شماره خوشه، شماره دسته در خوشه و مقدار شباهت کسینوسی و مقدار سافتمکس نزدیکترین دسته را در لیستهای مجزا ذخیره میکنیم
-    batch_size = 5000
-    batch_numbers = len(valx) // batch_size + (1 if (len(valx) % batch_size != 0) else 0)
-
     pre_path = data_scenario_path
-   
-    # در مرحله دوم، ابتدا بهترین دسته هایی که بیشترین مقدار سافتمکس را دریافت کرده اند، پیدا میکنیم
-    # شماره دسته، شماره خوشه، شماره دسته در خوشه، مقدار سافتمکس و مقدار شباهت کسینوسی دسته با داده آزمون
+
+    # Find the classes with the highest softmax values.
     if config['overwrite'] == False and os.path.isfile(join(pre_path, t + '_softmax_classes.pt')):
         softmax_clusters = torch.load(join(pre_path, t + '_softmax_clusters.pt'))
         softmax_classes = torch.load(join(pre_path, t + '_softmax_classes.pt'))
@@ -664,6 +823,12 @@ def ism_post_process(m, n_classes, parts, valx, t = 'val'):
     return softmax_classes
 
 def delete_directory(path):
+    """
+    Delete a directory and its contents.
+
+    Args:
+        path (str): The path to the directory to be deleted.
+    """
     try:
         shutil.rmtree(path)
     except Exception as e:

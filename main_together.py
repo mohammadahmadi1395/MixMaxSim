@@ -7,7 +7,16 @@ from datetime import datetime
 import sqlite3
 
 def main():
-    # Load the configuration file
+    """
+    Main function for running the ISM (Independent Softmax Model) and MMS (MixMaxSim) pipelines.
+
+    This function orchestrates the entire pipeline, including data preparation, submodel training,
+    post-processing, and evaluation for both ISM and MMS methods.
+
+    Returns:
+        None
+    """
+    # Load the configuration file    # Load the configuration file
     with open("./config/config.json", "r") as config_file:
         config = json.load(config_file)
 
@@ -15,7 +24,8 @@ def main():
     overwrite = config['overwrite']
     m = config['distance_measure']
 
-    for iter in range(10):
+    # Loop through different combinations of iterations, n_classes, n_clusters, and methods
+    for iter in range(7, 10):
         for n_classes, n_clusters in zip([5000, 7500, 7500, 7500, 8900, 8900, 8900], [4, 2, 3, 4, 2, 3, 4]):
             for method in ["ISM", "MMS"]:
                 conn = sqlite3.connect("./results/results.db")
@@ -26,6 +36,7 @@ def main():
                 model_scenario_path = join(config[dataset_name]["scenario_submodels"], scenario)
                 super_scenario_path = join(config[dataset_name]["scenario_embs"], str(n_classes))
 
+                # Delete existing data and model directories
                 delete_directory(data_scenario_path)
                 delete_directory(model_scenario_path)
 
@@ -44,18 +55,22 @@ def main():
                 utility_functions.pprint(("n_classes = ", n_classes), dataset_name)
                 utility_functions.pprint(("n_clusters = ", n_clusters), dataset_name)
 
+                # Create necessary directories
                 os.makedirs(super_scenario_path, exist_ok=True)
                 os.makedirs(data_scenario_path, exist_ok=True)
                 os.makedirs(model_scenario_path, exist_ok=True)
 
+                # Prepare data, distribute classes, and train submodels
                 trainx, trainy, trainl, traincenterx, traincentery, traincenterl, testx, testy, testl, valx, valy, vall = prepare_data(n_classes)
                 parts = distribute_classes(method, n_classes, n_clusters, trainx, trainy, trainl, traincenterx, traincentery, traincenterl, testx, testy, testl, valx, valy, vall)
                 train_submodels(method, n_classes, parts, trainx, trainy, trainl, traincenterx, traincentery, traincenterl, testx, testy, testl, valx, valy, vall)
 
                 if method == "ISM":
+                    # Perform ISM post-processing and evaluation on the test set
                     test_softmax_classes = ism_post_process(m, n_classes, parts, testx, 'test')
                     evaluate_ism(iter, m, n_classes, n_clusters, testl, test_softmax_classes)
                 else:
+                    # Perform MMS post-processing and evaluation on the test set
                     val_sim_classes, val_sim_values, val_sim_softmax, val_softmax_values, val_softmax_sims, val_softmax_classes = mms_post_process(m, n_classes, parts, traincenterx, valx, 'val')
                     thr = find_best_thr(n_classes, vall, val_sim_classes, val_sim_values, val_sim_softmax, val_softmax_values, val_softmax_sims, val_softmax_classes)
 

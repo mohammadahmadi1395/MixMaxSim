@@ -4,9 +4,21 @@ import random
 import torch
 from scipy.spatial.distance import cdist
 
-
 class Fast_KMeans:
   def __init__(self, n_clusters, centroids = None, max_iter=100, tol=0.0001, verbose=0, mode="euclidean", minibatch=None):
+    """
+        Initialize a Fast_KMeans instance.
+
+        Args:
+            n_clusters (int): The number of clusters.
+            centroids (numpy.ndarray, optional): Initial cluster centroids. Default is None.
+            max_iter (int, optional): Maximum number of iterations. Default is 100.
+            tol (float, optional): Tolerance for convergence. Default is 0.0001.
+            verbose (int, optional): Verbosity level. Default is 0.
+            mode (str, optional): Distance metric mode, 'euclidean' or 'cosine'. Default is 'euclidean'.
+            minibatch (int, optional): Size of minibatch for minibatch K-means. Default is None.
+
+      """
     self.n_clusters = n_clusters
     self.max_iter = max_iter
     self.tol = tol
@@ -87,6 +99,17 @@ class Fast_KMeans:
       return max_sim_v, max_sim_i
 
   def fit_predict(self, X, centroids=None):
+    """
+    Fit the K-means model to the data and predict cluster labels for input data.
+
+    Args:
+        X (numpy.ndarray): Input data.
+        centroids (numpy.ndarray, optional): Initial cluster centroids. Default is None.
+
+    Returns:
+        numpy.ndarray: Cluster labels for input data.
+    """
+
     batch_size, emb_dim = X.shape
     device = X.device.type
     # start_time = time()
@@ -121,67 +144,60 @@ class Fast_KMeans:
           c_grad[matched_clusters] = mask @ x / mask.sum(-1)[..., :, None]
 
 
-        # if x.dtype == torch.float:
-        #   expected = closest.numel() * len(matched_clusters) * 5 # bool+float
-        # elif x.dtype == torch.half:
-        #   expected = closest.numel() * len(matched_clusters) * 3 # bool+half
-        # if device == 'cpu':
-        #   ratio = 1
-        # else:
-        #   ratio = math.ceil(expected / self.remaining_memory() )
-        # # ratio = 1
-        # subbatch_size = math.ceil(len(matched_clusters)/ratio)
-        # for j in range(ratio):
-        #   if j*subbatch_size >= batch_size:
-        #     continue
-        #   sub_matched_clusters = matched_clusters[j*subbatch_size: (j+1)*subbatch_size]
-        #   sub_expanded_closest = closest[None].expand(len(sub_matched_clusters), -1)
-        #   sub_mask = (sub_expanded_closest==sub_matched_clusters[:, None]).to(x.dtype)
-        #   sub_prod = sub_mask @ x / sub_mask.sum(1)[:, None]
-        #   c_grad[sub_matched_clusters] = sub_prod
       error = (c_grad - self.centroids).pow(2).sum()
       if self.minibatch is not None:
         lr = 1/num_points_in_clusters[:,None] * 0.9 + 0.1
-        # lr = 1/num_points_in_clusters[:,None]**0.1 
       else:
         lr = 1
       num_points_in_clusters[matched_clusters] += counts
       self.centroids = self.centroids * (1-lr) + c_grad * lr
-      # if self.verbose >= 2:
-      #   print('iter:', i, 'error:', error.item(), 'time spent:', round(time()-iter_time, 4))
       if error <= self.tol:
         break
 
-    # SCATTER
-    if self._show:
-      if self.mode == "cosine":
-        sim = self.cos_sim(x, self.centroids)
-      elif self.mode == "euclidean":
-        sim = self.euc_sim(x, self.centroids)
-      closest = sim.argmax(dim=-1)
-      plt.scatter(X[:, 0].cpu(), X[:, 1].cpu(), c=closest.cpu(), marker='.', cmap='hsv')
-      # plt.scatter(c[:,0].cpu(), c[:,1].cpu(), marker='o', cmap='red')
-      plt.show()
-    # END SCATTER
-    # if self.verbose >= 1:
-    #   print(f'used {i+1} iterations ({round(time()-start_time, 4)}s) to cluster {batch_size} items into {self.n_clusters} clusters')
     return closest
 
   def predict(self, X):
+    """
+    Predict cluster labels for input data.
+
+    Args:
+        X (numpy.ndarray): Input data.
+
+    Returns:
+        numpy.ndarray: Cluster labels for input data.
+    """
     return self.max_sim(a=X, b=self.centroids)[1]
 
   def fit(self, X, centroids=None):
+    """
+    Fit the K-means model to the data.
+
+    Args:
+        X (numpy.ndarray): Input data.
+        centroids (numpy.ndarray, optional): Initial cluster centroids. Default is None.
+    """
     self.fit_predict(X, centroids)
 
 
 def init_centers(trainx, k):
-    c = 0
-    n_classes = len(trainx)
-    while(True):
-        a = random.sample(range(n_classes), k=k)
-        d = np.sum(cdist(trainx[a], trainx[a], 'cosine') > 0.69) * 1
-        if d == (len(a) ** 2 - len(a)):
-            break
-        print(c, d, (len(a) ** 2 - len(a)))
-        c += 1
-    return trainx[a], a
+  """
+  Initialize cluster centers for K-means clustering.
+
+  Args:
+      trainx (numpy.ndarray): Training data.
+      k (int): Number of clusters.
+
+  Returns:
+      numpy.ndarray: Cluster centers.
+      list: Indices of selected cluster centers.
+  """
+  c = 0
+  n_classes = len(trainx)
+  while(True):
+      a = random.sample(range(n_classes), k=k)
+      d = np.sum(cdist(trainx[a], trainx[a], 'cosine') > 0.69) * 1
+      if d == (len(a) ** 2 - len(a)):
+          break
+      print(c, d, (len(a) ** 2 - len(a)))
+      c += 1
+  return trainx[a], a

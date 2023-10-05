@@ -24,7 +24,8 @@ class L2Normalization(keras.layers.Layer):
         return config
 
 class ArcLayer(keras.layers.Layer):
-    """Custom layer for ArcFace.
+    """
+    Custom layer for ArcFace.
 
     This layer is equivalent a dense layer except the weights are normalized.
     """
@@ -123,13 +124,6 @@ class TrainingSupervisor(object):
             name: current model or project name.
         """
         super().__init__()
-        # self.cluster_idx = cluster_idx
-        # self.dataset_name = dataset_name
-        # self.scenario_number = scenario_number
-        # self.test_dataset = test_dataset
-        # self.test_data_generator = iter(self.test_dataset)
-        # self.previous_val_loss = np.Inf
-        # self.val_worst_counter = 0
 
         # Track the objects used for training.
         self.model = model
@@ -139,7 +133,6 @@ class TrainingSupervisor(object):
         self.data_generator = iter(self.dataset)
         self.save_freq = save_freq
         self.metrics = {
-            # 'categorical_accuracy': tf.keras.metrics.SparseCategoricalAccuracy(
             'categorical_accuracy': tf.keras.metrics.CategoricalAccuracy(
                 name='train_accuracy', dtype=tf.float32),
             'loss': tf.keras.metrics.Mean(name="train_loss_mean",
@@ -208,8 +201,6 @@ class TrainingSupervisor(object):
         else:
             print("WARNING: Checkpoint not found. Model will be initialized from scratch.")
 
-        # print("Restoring..")
-
         if weights_only:
             print("Only the model weights will be restored.")
             checkpoint = tf.train.Checkpoint(self.model)
@@ -255,13 +246,6 @@ class TrainingSupervisor(object):
 
             # Calculate the loss value from targets and regularization.
             loss = self.loss_fun(y_batch, logits) + sum(self.model.losses)
-
-#        # Calculate the gradients.
-#        grads = tape.gradient(loss, self.model.trainable_weights)
-
-#        # Back propagation.
-#        self.optimizer.apply_gradients(
-#            zip(grads, self.model.trainable_weights))
 
         return logits, loss
 
@@ -346,18 +330,12 @@ class TrainingSupervisor(object):
             # And save the model.
             best_model_path = self.scout.save()
             # print("Best model found and saved: {}".format(best_model_path))
-        # else:
-        #     print("Monitor value not improved: {:.4f}, latest: {:.4f}."
-        #           .format(previous, current))
 
         # Save a regular checkpoint.
         self._reset_metrics()
         ckpt_path = self.manager.save()
         os.makedirs(os.path.join(self.training_dir, 'exported', 'hrnetv2', str(epoch_idx)),exist_ok=True)
         self.model.save(os.path.join(self.training_dir, 'exported', 'hrnetv2', str(epoch_idx)))
-
-        # print("Checkpoint saved at global step: {}, to file: {}".format(
-        #     int(self.schedule['step']), ckpt_path))
 
     def train(self, epochs, steps_per_epoch):
         """Train the model for epochs.
@@ -370,10 +348,6 @@ class TrainingSupervisor(object):
         initial_epoch = self.schedule['epoch'].numpy()
         global_step = self.schedule['step'].numpy()
         initial_step = global_step % steps_per_epoch
-
-        # print("Resume training from global step: {}, epoch: {}".format(
-        #     global_step, initial_epoch))
-        # print("Current step is: {}".format(initial_step))
 
         # Start training loop.
         for epoch in range(initial_epoch, epochs + 1):
@@ -407,64 +381,17 @@ class TrainingSupervisor(object):
                 # Log and checkpoint the model.
                 if int(self.schedule['step']) % self.save_freq == 0:
                     pass
-                #     self._log_to_tensorboard() uncomment here
-                    # self._checkpoint()
-
-            
-            # # Iterate over the batches of the dataset
-            # for x_batch, y_batch in self.test_dataset:
-            #     # Test for one step.
-            #     val_logits, val_loss = self._val_step(x_batch, y_batch)
-
-            #     # Update the metrics.
-            #     self._update_val_metrics(tf.expand_dims(y_batch, 1), val_logits, val_loss)
-
+           
             # Update the checkpoint epoch counter.
             self.schedule['epoch'].assign_add(1)
 
             # Reset the training dataset.
             self.data_generator = iter(self.dataset)
 
-            # Save the last checkpoint.
-            # self._log_to_tensorboard() uncomment here
-            # self._checkpoint(epoch) uncomment here
-
             # Clean up the progress bar.
             progress_bar.close()
 
-            # if (self.metrics['val_loss'].result() > self.previous_val_loss):
-            #     self.val_worst_counter += 1
-            #     utility_functions.pprint(('worst_counter ', str(self.val_worst_counter)))
-            #     if epoch > 10 and self.val_worst_counter > 5:
-            #         break
-            # else:
-            #     self.val_worst_counter = 0
-            #     # utility_functions.pprint(('worst_counter ', str(self.val_worst_counter)))
-            #     self.previous_val_loss = self.metrics['val_loss'].result()
-            #     export_dir = os.path.join('./glint360k_224/models/' , str(self.scenario_number) , str(self.cluster_idx), 'exported', "hrnetv2")
-            #     self.export(self.model, export_dir)                
-
         print("Training accomplished at epoch {}".format(epochs))
-
-
-    # def test_acc_calc(self):
-    #     lbls = []
-    #     preds = []
-    #     total_loss = 0
-    #     for idx, test in enumerate(self.test_dataset):
-    #         for t in test[1]:
-    #             # lbls.append(np.where(t == 1)[0][0])        
-    #             lbls.append(t)
-    #         preds += list(np.argmax(self.model.predict(test[0]), axis=1))
-
-    #     trues = 0
-    #     falses = 0
-    #     for idx in range(len(lbls)):
-    #         if lbls[idx] == preds[idx]:
-    #             trues += 1
-    #         else:
-    #             falses += 1
-    #     return trues / (trues + falses)
 
 
     def export(self, model, export_dir):
@@ -473,10 +400,7 @@ class TrainingSupervisor(object):
         Args:
             export_dir: the direcotry where the model will be saved.
         """
-        # utility_functions.pprint("Saving model to {} ...".format(export_dir))
         model.save(export_dir)
-        # tf.keras.models.save_model(model, export_dir)
-        # utility_functions.pprint("Model saved at: {}".format(export_dir))
 
     def override(self, step=None, epoch=None, monitor_value=None):
         """Override the current training schedule with a new one.
@@ -498,6 +422,25 @@ class TrainingSupervisor(object):
             self.schedule['monitor_value'].assign(monitor_value)
 
 def softmax_train(dataset_name, model_scenario_path, train_dataset, cluster, trainx, trainl, sub_index, freq=1000, epochs=50, train_overwrite=False):
+    """
+    Train a softmax-based model for classification.
+
+    Args:
+        dataset_name (str): Name of the dataset.
+        model_scenario_path (str): Path to the model scenario.
+        train_dataset (keras.utils.data.Dataset): Training dataset.
+        cluster (list): List of clusters.
+        trainx (numpy.ndarray): Training input data.
+        trainl (numpy.ndarray): Training labels.
+        sub_index (int): Sub-index for model scenario.
+        freq (int, optional): Frequency of training checkpoints. Default is 1000.
+        epochs (int, optional): Number of training epochs. Default is 50.
+        train_overwrite (bool, optional): Whether to overwrite existing training data. Default is False.
+
+    Returns:
+        keras.Model: The trained softmax-based model.
+    """
+
     frequency = freq
     name = "hrnetv2"
     export_dir = os.path.join(model_scenario_path, str(sub_index), 'exported', name)
@@ -507,18 +450,22 @@ def softmax_train(dataset_name, model_scenario_path, train_dataset, cluster, tra
     regularizer = keras.regularizers.L2(5e-4)
     name = "hrnetv2"
 
+    # Define the model architecture
     model = keras.Sequential([keras.Input(input_shape), \
         L2Normalization(), \
         ArcLayer(num_ids, regularizer)], \
         name="training_model")
 
+    # Define the loss function
     loss_fun = ArcLoss(n_classes=num_ids)
     
+    # Define the optimizer
     optimizer = keras.optimizers.Adam(0.001, amsgrad=True, epsilon=0.001)
 
     path = None
     path = os.path.join(model_scenario_path, str(sub_index))
 
+    # Create a TrainingSupervisor
     supervisor = TrainingSupervisor(model,
                                     optimizer,
                                     loss_fun,
@@ -531,10 +478,13 @@ def softmax_train(dataset_name, model_scenario_path, train_dataset, cluster, tra
                                     num_ids)
     model.summary()
 
-    supervisor.restore(True) #args.restore_weights_only)
+    # Restore the model if available
+    supervisor.restore(True)
 
+    # Train the model
     supervisor.train(epochs, freq)
 
+    # Export the trained model
     supervisor.export(model, export_dir)
 
     return model

@@ -11,6 +11,7 @@
   If you want implement the project in your machine, you need to have dataset, prepare the data and then implement the project.
   
   ## Requiremnts
+  python version: 3.7.12
   ``` pip install -r requiremnts.txt```
 
   ### Download datasets
