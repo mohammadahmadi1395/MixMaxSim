@@ -368,7 +368,7 @@ def evaluate_ism(iter, m, n_classes, n_clusters, testl, test_softmax_classes):
     utility_functions.pprint((max_max_report['macro avg']), config[dataset_name])
 
     # Update results in the database.
-    conn = sqlite3.connect("./results/results.db")
+    conn = sqlite3.connect("./results/" + dataset_name + "_results.db")
     cursor = conn.cursor()
     cursor.execute("UPDATE results set ism_end_timestamp = ?, ism_recall = ?, ism_precision =?, ism_fscore = ? where iteration = ? and dataset_name= ? and n_classes = ? and n_clusters = ?", (datetime.now(), max_max_report['macro avg']['recall'], max_max_report['macro avg']['precision'], max_max_report['macro avg']['f1-score'], iter, dataset_name, n_classes, n_clusters))
     conn.commit()
@@ -377,7 +377,7 @@ def evaluate_ism(iter, m, n_classes, n_clusters, testl, test_softmax_classes):
     return max_max_report
 
 
-def evaluate_mms(iter, thr, testl, n_classes, n_clusters, sim_classes, sim_values, sim_softmax, softmax_values, softmax_sims, softmax_classes):
+def evaluate_mms(iter, confident_ism_thr, thr, testl, n_classes, n_clusters, sim_classes, sim_values, sim_softmax, softmax_values, softmax_sims, softmax_classes):
     """
     Evaluate the performance of the MMS (MixMaxSim) method.
 
@@ -411,7 +411,7 @@ def evaluate_mms(iter, thr, testl, n_classes, n_clusters, sim_classes, sim_value
     except:
         res = (sim_values * (thr / 10) * ((sim_softmax+1)/2)) > (softmax_values.numpy() * ((np.array(softmax_sims.numpy())+1)/2))
     for idx in range(n_classes * 5):
-        if softmax_values[idx] > 0.5:
+        if softmax_values[idx] > 0.8:
             main_preds[idx] = softmax_classes[idx]
             if softmax_classes[idx] == testl[idx]:
                 trues += weights[idx]
@@ -434,7 +434,7 @@ def evaluate_mms(iter, thr, testl, n_classes, n_clusters, sim_classes, sim_value
     main_report = (metrics.classification_report(testl, main_preds, output_dict=True, zero_division=0))
     utility_functions.pprint((main_report['macro avg']), config[dataset_name])
     
-    conn = sqlite3.connect("./results/results.db")
+    conn = sqlite3.connect("./results/" + dataset_name + "_results.db")
     cursor = conn.cursor()
     cursor.execute("UPDATE results set mms_end_timestamp = ?, mms_recall = ?, mms_precision =?, mms_fscore = ?, mms_best_thr = ? where iteration = ? and dataset_name= ? and n_classes = ? and n_clusters = ?", (datetime.now(), main_report['macro avg']['recall'], main_report['macro avg']['precision'], main_report['macro avg']['f1-score'], best_thr, iter, dataset_name, n_classes, n_clusters))
     conn.commit()
@@ -474,6 +474,15 @@ def find_best_thr(n_classes, vall, sim_classes, sim_values, sim_softmax, softmax
     best_thr = -1
     best_recall = 0
 
+    confident_ism_thr = -1
+    false_cases = np.where(softmax_classes != np.array([i // 5 for i in range(n_classes * 5)]))[0]
+    for i in range(100):
+        x = np.sum(softmax_values[false_cases] > (i / 100)) / len(false_cases)
+        if x < 0.01:
+            confident_ism_thr = (i / 100)
+            break
+    utility_functions.pprint(("confident_ism_thr", confident_ism_thr), config[dataset_name])
+
     main_preds = np.zeros((len(vall), 20))
 
     # Iterate through a range of threshold values
@@ -487,7 +496,7 @@ def find_best_thr(n_classes, vall, sim_classes, sim_values, sim_softmax, softmax
         except:
             res = (sim_values * ((sim_softmax+1)/2)) * (th / 10) > (softmax_values.numpy() * ((np.array(softmax_sims.numpy())+1)/2))
         for idx in range(len(vall)):
-            if softmax_values[idx] > 0.5: #0.5:
+            if softmax_values[idx] > confident_ism_thr: #0.5:
                 main_preds[idx, th] = softmax_classes[idx]
                 if softmax_classes[idx] == vall[idx]:
                     true_prec[vall[idx]] += weights[idx]
@@ -532,14 +541,14 @@ def find_best_thr(n_classes, vall, sim_classes, sim_values, sim_softmax, softmax
         main_recall = trues / (trues + falses)
 
         # Print and update the best threshold if necessary
-        print((th, main_recall))
+        utility_functions.pprint((th, main_recall), config[dataset_name])
         if main_recall >= best_recall:
             best_thr = th
             best_recall = main_recall
         print(trues, falses)
 
     utility_functions.pprint(("best_thr", best_thr), config[dataset_name])
-    return best_thr
+    return confident_ism_thr, best_thr
 
 def mms_post_process(m, n_classes, parts, traincenterx, valx, t = 'val'):
     """
@@ -560,7 +569,7 @@ def mms_post_process(m, n_classes, parts, traincenterx, valx, t = 'val'):
 
     models = dict()
     n_clusters = len(parts)
-    scenario = str(n_classes) + '_MMS' + str(n_clusters)
+    scenario = str(n_classes) + '_MMS' + str(n_clusters) # todo: convert ism to mms
     dataset_name = config["dataset_name"]
     data_scenario_path = join(config[dataset_name]["scenario_embs"], scenario)
     model_scenario_path = join(config[dataset_name]["scenario_submodels"], scenario)

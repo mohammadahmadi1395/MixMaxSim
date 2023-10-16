@@ -5,6 +5,7 @@ import os
 from os.path import join
 from datetime import datetime
 import sqlite3
+import pandas as pd
 
 def main():
     """
@@ -25,10 +26,26 @@ def main():
     m = config['distance_measure']
 
     # Loop through different combinations of iterations, n_classes, n_clusters, and methods
-    for iter in range(7, 10):
-        for n_classes, n_clusters in zip([5000, 7500, 7500, 7500, 8900, 8900, 8900], [4, 2, 3, 4, 2, 3, 4]):
+    for iter in range(10):
+        # for n_classes, n_clusters in zip([6000, 7000, 8000, 8500, 6000, 7000, 8000, 8500, 6000, 7000, 8000, 8500], [2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4]):
+        for n_classes, n_clusters in zip([10000, 10000, 10000, 10000, 10000, 10000], [2, 4, 5, 6, 8, 10, 20]):
             for method in ["ISM", "MMS"]:
-                conn = sqlite3.connect("./results/results.db")
+                query = None
+                conn = sqlite3.connect("./results/" + dataset_name + "_results.db")
+                df = None
+                if method == "ISM":
+                    query = "select ism_end_timestamp from results where iteration=? and n_classes=? and n_clusters=?"
+                    df = pd.read_sql_query(query, conn, params=(iter, n_classes, n_clusters))
+                    if not df.empty and not df['ism_end_timestamp'].item() == None:
+                        print("already done", method, iter, n_classes, n_clusters)
+                        continue
+                else:
+                    query = "select mms_end_timestamp from results where iteration=? and n_classes=? and n_clusters=?"
+                    df = pd.read_sql_query(query, conn, params=(iter, n_classes, n_clusters))
+                    if not df.empty and not df['mms_end_timestamp'].item() == None:
+                        print("already done", method, iter, n_classes, n_clusters)
+                        continue
+
                 cursor = conn.cursor()
 
                 scenario = str(n_classes) + '_' + method + str(n_clusters)
@@ -77,15 +94,5 @@ def main():
                     test_sim_classes, test_sim_values, test_sim_softmax, test_softmax_values, test_softmax_sims, test_softmax_classes = mms_post_process(m, n_classes, parts, traincenterx, testx, 'test')
                     evaluate_mms(iter, thr, testl, n_classes, n_clusters, test_sim_classes, test_sim_values, test_sim_softmax, test_softmax_values, test_softmax_sims, test_softmax_classes)
 
-
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-

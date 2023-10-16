@@ -215,7 +215,11 @@ def convert_emb_to_tfrecord(dataset_name, data_scenario_path, dataset_path, tr_i
                 y_train += [id[1]]
             else:
                 cl_train_emb = None
-                cl_train_emb = np.load(join(dataset_path, 'train', id[0] + '.npz'))['res']
+                try:
+                    cl_train_emb = np.load(join(dataset_path, 'train', str(id[0][0]) + '.npz'))['res']
+                except:
+                    cl_train_emb = np.load(join(dataset_path, 'train', str(id[0]) + '.npz'))['res']
+
                 x_train += list(cl_train_emb)
                 y_train +=  ([id[1]] * len(cl_train_emb))
         
@@ -246,7 +250,11 @@ def convert_emb_to_tfrecord(dataset_name, data_scenario_path, dataset_path, tr_i
         id_test = []
         for id in (te_ids[shard_counter]):           
             cl_test_emb = None
-            cl_test_emb = np.load(join(dataset_path, 'val', id[0] + '.npz'))['res']
+            try:
+                cl_test_emb = np.load(join(dataset_path, 'val', str(id[0][0]) + '.npz'))['res']
+            except:
+                cl_test_emb = np.load(join(dataset_path, 'val', str(id[0]) + '.npz'))['res']
+
             x_test += list(cl_test_emb)
             y_test +=  ([id[1]] * len(cl_test_emb)) #(list(np.where(cluster_ids == id[2])[0]) * len(cl_val_emb)) # ([100] * len(cl_val_emb))
 

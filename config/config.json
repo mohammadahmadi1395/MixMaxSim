@@ -4,7 +4,7 @@
         "torrent_path": "./data/glint360k/glint360k-e5f46ee502b9e76da8cc3a0e4f7c17e4000c7b1e.torrent",
         "orig_dataset_dir": "./data/",
         "balanced_dataset_dir": "./data/glint360k/balanced_data/",
-        "features": "F:/test/deepface/mixmaxsim/features/glint360k/",
+        "features": "E:/balanced_glint360k/new_embeddings/",
         "scenario_embs": "./scenarios/glint360k/embs/",
         "scenario_submodels": "./scenarios/glint360k/submodels/"
     },
@@ -27,8 +27,8 @@
     "method": "ISM",
     "n_classes": 10000,
     "n_clusters": 5,
-    "distance_measure": "cosine",
-    "dataset_name": "vggface2",
+    "distance_measure": "euclidean",
+    "dataset_name": "glint360k",
     "overwrite": true,
     "epochs": 50
 }
